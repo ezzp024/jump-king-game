@@ -18,10 +18,10 @@
           <h1>Skybound Crown</h1>
         </div>
         <div class="stats">
-          <p><span>Height</span> <strong id="height">0m</strong></p>
-          <p><span>Best</span> <strong id="best">0m</strong></p>
-          <p><span>Falls</span> <strong id="falls">0</strong></p>
-          <p><span>Checkpoint</span> <strong id="checkpoint">Base Camp</strong></p>
+          <p><span id="heightLabel">Height</span> <strong id="height">0m</strong></p>
+          <p><span id="bestLabel">Best</span> <strong id="best">0m</strong></p>
+          <p><span id="fallsLabel">Falls</span> <strong id="falls">0</strong></p>
+          <p><span id="checkpointLabel">Checkpoint</span> <strong id="checkpoint">Base Camp</strong></p>
         </div>
       </header>
 
@@ -29,6 +29,8 @@
 
       <footer class="overlay bottombar">
         <div class="actions">
+          <button id="soloBtn" class="accent">Solo</button>
+          <button id="versusBtn">Versus</button>
           <button id="startBtn" class="accent">Start</button>
           <button id="restartBtn">Restart</button>
           <button id="fullscreenBtn">Fullscreen</button>
@@ -46,7 +48,7 @@
           <button data-key="jump" class="jump" aria-label="Hold then release jump">Hold Jump</button>
         </div>
 
-        <p class="legend">Desktop: A/D or arrows to face, hold Space then release. Enter starts. R restarts.</p>
+        <p class="legend">Solo: arrows + Space or touch controls. Versus: P1 arrows + /, P2 A/D + W. Enter starts, R restarts.</p>
       </footer>
     </section>
   </main>

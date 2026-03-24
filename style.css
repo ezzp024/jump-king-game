@@ -116,6 +116,7 @@ body {
   display: flex;
   gap: 8px;
   margin-bottom: 7px;
+  flex-wrap: wrap;
 }
 
 .chapter,
@@ -173,6 +174,11 @@ button.accent {
   background: linear-gradient(180deg, #f2b163, #df7e35);
   color: #2c150a;
   border-color: rgba(104, 54, 23, 0.44);
+}
+
+button.mode-active {
+  background: linear-gradient(180deg, #ffd18d, #f09e4f);
+  border-color: rgba(115, 62, 26, 0.52);
 }
 
 button.jump {

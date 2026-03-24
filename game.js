@@ -9,6 +9,13 @@ const statusEl = document.getElementById("status");
 const chapterEl = document.getElementById("chapter");
 const storyEl = document.getElementById("storyLine");
 
+const heightLabelEl = document.getElementById("heightLabel");
+const bestLabelEl = document.getElementById("bestLabel");
+const fallsLabelEl = document.getElementById("fallsLabel");
+const checkpointLabelEl = document.getElementById("checkpointLabel");
+
+const soloBtn = document.getElementById("soloBtn");
+const versusBtn = document.getElementById("versusBtn");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
@@ -17,406 +24,314 @@ const stageShell = document.getElementById("stageShell");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const BASE_Y = 860;
-const WORLD_TOP = -7600;
+const WORLD_TOP = -15000;
 const GOAL_Y = WORLD_TOP + 120;
+const FALL_LIMIT = 1080;
 
-const GRAVITY = 2140;
+const GRAVITY = 2200;
 const AIR_DRAG = 0.992;
-const WALL_BOUNCE = -0.2;
-const FALL_LIMIT = 1040;
-const STORAGE_KEY = "skybound-crown-best-height";
+const WALL_BOUNCE = -0.22;
+const STORAGE_KEY = "skybound-crown-solo-best";
 
-const input = {
-  left: false,
-  right: false,
-  jump: false,
-};
-
-const player = {
-  x: WIDTH * 0.5 - 13,
-  y: BASE_Y - 38,
-  w: 26,
-  h: 38,
-  vx: 0,
-  vy: 0,
-  facing: 1,
-  grounded: false,
-  charging: false,
-  charge: 0,
-  maxCharge: 1.28,
-};
+const keyState = {};
+const touchInput = { left: false, right: false, jump: false };
 
 const game = {
   mode: "title",
+  type: "solo",
+  winner: "",
   cameraY: 0,
   shake: 0,
-  falls: 0,
-  best: Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10) || 0,
-  currentHeight: 0,
-  checkpointHeight: 0,
-  checkpointName: "Base Camp",
-  nextCheckpoint: 160,
-  respawnX: WIDTH * 0.5 - 13,
-  respawnY: BASE_Y - 38,
-  storyIndex: 0,
-  chapter: "Chapter I - The Foot of the Mountain",
+  t: 0,
+  soloBest: Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10) || 0,
 };
 
-const storyMoments = [
-  {
-    at: 0,
-    chapter: "Chapter I - The Foot of the Mountain",
-    line: "The old bell is silent. Climb and ring it from the sky keep.",
-  },
-  {
-    at: 220,
-    chapter: "Chapter II - Windcut Ledges",
-    line: "Cold wind cuts through your armor. The path starts to narrow.",
-  },
-  {
-    at: 560,
-    chapter: "Chapter III - The Cracked Causeway",
-    line: "Ruined stones crumble beneath your feet. Hesitation means falling.",
-  },
-  {
-    at: 980,
-    chapter: "Chapter IV - The Choir of Spires",
-    line: "The mountain whispers. Spikes wait where pride jumps first.",
-  },
-  {
-    at: 1480,
-    chapter: "Chapter V - Cloud Bastion",
-    line: "You pass the clouds. The crown tower finally appears above.",
-  },
-  {
-    at: 2140,
-    chapter: "Final Chapter - The Bell Keep",
-    line: "One final ascent. The city below waits for the bell to ring.",
-  },
+const players = [
+  createPlayer("P1", "#eb6f3f", "#201a17", WIDTH * 0.45),
+  createPlayer("P2", "#3a9a8e", "#182826", WIDTH * 0.55),
 ];
 
-const level = buildLevel();
+const story = [
+  { at: 0, chapter: "Chapter I - Ash Road", line: "The old bell is silent. Climb to wake the city." },
+  { at: 380, chapter: "Chapter II - Windcut Ledges", line: "The path tightens and the mountain tests your nerve." },
+  { at: 920, chapter: "Chapter III - Broken Galleries", line: "Ancient bridges collapse under impatient steps." },
+  { at: 1660, chapter: "Chapter IV - Iron Teeth", line: "Spikes guard every lazy landing." },
+  { at: 2600, chapter: "Chapter V - Storm Canopy", line: "Moving relics drift through cloud and thunder." },
+  { at: 3600, chapter: "Chapter VI - Bell Keep", line: "Only committed jumps survive the final climb." },
+];
+
+const raceStory = [
+  "Race mode active. First to the crown wins.",
+  "P1: arrows + /. P2: A/D + W.",
+  "No mercy. No pause. Just climb.",
+];
+
+const world = buildLevel();
+let storyIndex = 0;
+let raceLineIndex = 0;
+let raceStoryTimer = 0;
+
+function createPlayer(name, mainColor, trimColor, spawnX) {
+  return {
+    name,
+    mainColor,
+    trimColor,
+    x: spawnX - 13,
+    y: BASE_Y - 38,
+    w: 26,
+    h: 38,
+    vx: 0,
+    vy: 0,
+    facing: 1,
+    grounded: false,
+    charging: false,
+    charge: 0,
+    maxCharge: 1.3,
+    jumpHeld: false,
+    falls: 0,
+    height: 0,
+    checkpointName: "Base Camp",
+    nextCheckpoint: 180,
+    respawnX: spawnX - 13,
+    respawnY: BASE_Y - 38,
+  };
+}
 
 function buildLevel() {
   const platforms = [];
   const spikes = [];
 
-  platforms.push({ x: WIDTH * 0.5 - 120, y: BASE_Y, w: 240, h: 26, type: "solid", broken: false, timer: 0 });
+  platforms.push({ type: "solid", x: WIDTH * 0.5 - 130, y: BASE_Y, w: 260, h: 24, broken: false, timer: 0 });
 
-  let y = BASE_Y - 100;
-  let x = WIDTH * 0.5 - 70;
-  let w = 140;
+  let y = BASE_Y - 95;
+  let x = WIDTH * 0.5 - 78;
+  let w = 156;
   let lane = 1;
-  let step = 0;
 
-  while (y > WORLD_TOP + 200) {
+  for (let i = 0; y > WORLD_TOP + 260; i += 1) {
     const progress = (BASE_Y - y) / (BASE_Y - WORLD_TOP);
-    const difficulty = Math.min(1, progress * 1.18);
+    const diff = Math.min(1, progress * 1.2);
 
-    const minGap = 88 + difficulty * 52;
-    const maxGap = 108 + difficulty * 72;
-    const gap = minGap + pseudo(step * 13 + 7) * (maxGap - minGap);
+    const gap = lerp(90 + diff * 45, 130 + diff * 95, prand(i * 17 + 9));
     y -= gap;
 
-    const minW = 74;
-    const maxW = 158 - difficulty * 56;
-    w = clamp(maxW - pseudo(step * 11 + 17) * 18, minW, maxW);
+    const minW = 60;
+    const maxW = 160 - diff * 70;
+    w = clamp(maxW - prand(i * 13 + 5) * 20, minW, maxW);
 
-    const maxShift = 120 + difficulty * 44;
-    const shift = (pseudo(step * 29 + 3) - 0.5) * 2 * maxShift;
-
-    if (step % 5 === 0) {
+    const laneShift = (prand(i * 7 + 13) - 0.5) * 2 * (115 + diff * 60);
+    if (i % 6 === 0) {
       lane = (lane + 1) % 3;
-      const laneTarget = lane === 0 ? 70 : lane === 1 ? WIDTH * 0.5 - w * 0.5 : WIDTH - w - 70;
-      x += (laneTarget - x) * 0.64;
+      const target = lane === 0 ? 54 : lane === 1 ? WIDTH * 0.5 - w * 0.5 : WIDTH - w - 54;
+      x += (target - x) * 0.65;
     } else {
-      x += shift;
+      x += laneShift;
     }
-
-    x = clamp(x, 34, WIDTH - w - 34);
+    x = clamp(x, 20, WIDTH - w - 20);
 
     let type = "solid";
-    if (difficulty > 0.24 && difficulty < 0.9 && step % 8 === 3) type = "crumbly";
-    if (difficulty > 0.58 && step % 14 === 7) type = "spring";
+    if (diff > 0.2 && diff < 0.95 && i % 8 === 3) type = "crumbly";
+    if (diff > 0.44 && i % 11 === 5) type = "moving";
+    if (diff > 0.62 && i % 15 === 9) type = "spring";
 
-    platforms.push({ x, y, w, h: 18, type, broken: false, timer: 0 });
+    const platform = {
+      type,
+      x,
+      y,
+      w,
+      h: 18,
+      broken: false,
+      timer: 0,
+      amp: 0,
+      speed: 0,
+      phase: 0,
+      xNow: x,
+      dx: 0,
+    };
 
-    if (step % 6 === 2) {
-      const catchW = clamp(w + 18, 88, 160);
-      const catchX = clamp(x - (pseudo(step * 9 + 4) - 0.5) * 30, 24, WIDTH - catchW - 24);
-      platforms.push({ x: catchX, y: y + 62, w: catchW, h: 14, type: "solid", broken: false, timer: 0 });
+    if (type === "moving") {
+      platform.amp = 30 + prand(i * 10 + 2) * 60;
+      platform.speed = 0.7 + prand(i * 3 + 2) * 1.1;
+      platform.phase = prand(i * 8 + 6) * Math.PI * 2;
     }
 
-    if (difficulty > 0.32 && difficulty < 0.95 && step % 9 === 6 && type === "solid") {
-      const sw = clamp(w * 0.32, 22, 44);
-      const sx = x + (w - sw) * clamp(pseudo(step * 6 + 1), 0.15, 0.85);
+    platforms.push(platform);
+
+    if (i % 7 === 2) {
+      const rescueW = clamp(w + 12, 84, 150);
+      const rescueX = clamp(x + (prand(i * 5 + 4) - 0.5) * 40, 20, WIDTH - rescueW - 20);
+      platforms.push({ type: "solid", x: rescueX, y: y + 66, w: rescueW, h: 14, broken: false, timer: 0, amp: 0, speed: 0, phase: 0, xNow: rescueX, dx: 0 });
+    }
+
+    if (diff > 0.3 && diff < 0.98 && i % 9 === 4) {
+      const sw = clamp(w * 0.34, 22, 46);
+      const sx = x + (w - sw) * clamp(prand(i * 29 + 11), 0.12, 0.88);
       spikes.push({ x: sx, y: y - 12, w: sw, h: 12 });
     }
-
-    step += 1;
   }
 
-  platforms.push({ x: WIDTH * 0.5 - 72, y: GOAL_Y + 52, w: 144, h: 18, type: "solid", broken: false, timer: 0 });
+  platforms.push({ type: "solid", x: WIDTH * 0.5 - 75, y: GOAL_Y + 60, w: 150, h: 18, broken: false, timer: 0, amp: 0, speed: 0, phase: 0, xNow: WIDTH * 0.5 - 75, dx: 0 });
   return { platforms, spikes };
 }
 
-function pseudo(n) {
-  const x = Math.sin(n * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
+function resetWorld() {
+  for (const p of world.platforms) {
+    p.broken = false;
+    p.timer = 0;
+    p.xNow = p.x;
+    p.dx = 0;
+  }
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+function resetPlayer(player, spawnX) {
+  player.x = spawnX - 13;
+  player.y = BASE_Y - 38;
+  player.vx = 0;
+  player.vy = 0;
+  player.facing = 1;
+  player.grounded = false;
+  player.charging = false;
+  player.charge = 0;
+  player.jumpHeld = false;
+  player.falls = 0;
+  player.height = 0;
+  player.checkpointName = "Base Camp";
+  player.nextCheckpoint = 180;
+  player.respawnX = spawnX - 13;
+  player.respawnY = BASE_Y - 38;
 }
 
-function setInput(key, value) {
-  input[key] = value;
-  const button = document.querySelector(`button[data-key="${key}"]`);
-  if (button) button.classList.toggle("active", value);
+function startRun() {
+  game.mode = "playing";
+  game.winner = "";
+  game.cameraY = 0;
+  game.shake = 0;
+  game.t = 0;
+
+  resetWorld();
+  resetPlayer(players[0], WIDTH * 0.45);
+  resetPlayer(players[1], WIDTH * 0.55);
+
+  storyIndex = 0;
+  raceLineIndex = 0;
+  raceStoryTimer = 0;
+
+  if (game.type === "solo") {
+    chapterEl.textContent = story[0].chapter;
+    storyEl.textContent = story[0].line;
+    setStatus("Climb started. Every jump counts.");
+  } else {
+    chapterEl.textContent = "Versus Mode - Twin Trial";
+    storyEl.textContent = raceStory[0];
+    setStatus("Race to the crown.");
+  }
+
+  syncHud();
 }
 
 function setStatus(text) {
   statusEl.textContent = text;
 }
 
-function checkpointNameForHeight(h) {
-  if (h < 180) return "Base Camp";
-  if (h < 520) return "Ridge Marker";
-  if (h < 980) return "Broken Arch";
-  if (h < 1500) return "Choir Ledge";
-  if (h < 2200) return "Cloud Bastion";
-  return "Bell Keep Approach";
-}
-
-function syncHud() {
-  heightEl.textContent = `${game.currentHeight}m`;
-  bestEl.textContent = `${game.best}m`;
-  fallsEl.textContent = String(game.falls);
-  checkpointEl.textContent = game.checkpointName;
-  chapterEl.textContent = game.chapter;
-}
-
-function resetPlayerToSpawn() {
-  player.x = game.respawnX;
-  player.y = game.respawnY;
-  player.vx = 0;
-  player.vy = 0;
-  player.charge = 0;
-  player.charging = false;
-  player.grounded = false;
-}
-
-function startRun() {
-  game.mode = "playing";
-  game.cameraY = 0;
-  game.shake = 0;
-  game.falls = 0;
-  game.currentHeight = 0;
-  game.checkpointHeight = 0;
-  game.checkpointName = "Base Camp";
-  game.nextCheckpoint = 160;
-  game.respawnX = WIDTH * 0.5 - 13;
-  game.respawnY = BASE_Y - 38;
-  game.storyIndex = 0;
-  game.chapter = storyMoments[0].chapter;
-
-  for (const platform of level.platforms) {
-    platform.broken = false;
-    platform.timer = 0;
+function chooseMode(type) {
+  game.type = type;
+  game.mode = "title";
+  game.winner = "";
+  updateModeButtons();
+  if (type === "solo") {
+    chapterEl.textContent = story[0].chapter;
+    storyEl.textContent = story[0].line;
+    setStatus("Solo mode selected. Press Start.");
+  } else {
+    chapterEl.textContent = "Versus Mode - Twin Trial";
+    storyEl.textContent = raceStory[0];
+    setStatus("Versus mode selected. Press Start.");
   }
-
-  storyEl.textContent = storyMoments[0].line;
-  setStatus("Run started. Commit to each jump.");
-  resetPlayerToSpawn();
   syncHud();
 }
 
-function loseLife(message) {
-  game.falls += 1;
-  game.shake = 0.28;
-  setStatus(message);
-  resetPlayerToSpawn();
+function updateModeButtons() {
+  soloBtn.classList.toggle("mode-active", game.type === "solo");
+  versusBtn.classList.toggle("mode-active", game.type === "versus");
 }
 
-function maybeSetCheckpoint(platform) {
-  if (!platform) return;
-  if (game.currentHeight < game.nextCheckpoint) return;
-
-  game.checkpointHeight = game.currentHeight;
-  game.checkpointName = checkpointNameForHeight(game.currentHeight);
-  game.respawnX = platform.x + platform.w * 0.5 - player.w * 0.5;
-  game.respawnY = platform.y - player.h;
-  game.nextCheckpoint += 260;
-  setStatus(`Checkpoint reached: ${game.checkpointName}`);
+function checkpointNameForHeight(h) {
+  if (h < 300) return "Base Camp";
+  if (h < 900) return "Ridge";
+  if (h < 1600) return "Causeway";
+  if (h < 2600) return "Spire";
+  if (h < 3800) return "Cloud Bastion";
+  return "Final Ascent";
 }
 
-function maybeAdvanceStory() {
-  const next = storyMoments[game.storyIndex + 1];
-  if (!next) return;
-  if (game.currentHeight < next.at) return;
-
-  game.storyIndex += 1;
-  game.chapter = next.chapter;
-  storyEl.textContent = next.line;
-  setStatus(`Story unlocked: ${next.chapter}`);
+function platformXAt(p, t) {
+  if (p.type !== "moving") return p.x;
+  return p.x + Math.sin(t * p.speed + p.phase) * p.amp;
 }
 
-function startCharge() {
-  if (game.mode !== "playing") return;
-  if (!player.grounded) return;
-  player.charging = true;
-  player.charge = 0;
-}
-
-function releaseJump() {
-  if (game.mode !== "playing") return;
-  if (!player.charging || !player.grounded) return;
-
-  const c = Math.max(0.08, player.charge);
-  const jump = 480 + c * 940;
-  const push = 180 + c * 350;
-
-  player.vy = -jump;
-  player.vx = player.facing * push;
-  player.grounded = false;
-  player.charging = false;
-  player.charge = 0;
-}
-
-function bindPress(button, onDown, onUp) {
-  button.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    onDown();
-  });
-  button.addEventListener(
-    "touchstart",
-    (event) => {
-      event.preventDefault();
-      onDown();
-    },
-    { passive: false }
-  );
-
-  if (!onUp) return;
-
-  const up = (event) => {
-    event.preventDefault();
-    onUp();
-  };
-
-  button.addEventListener("mouseup", up);
-  button.addEventListener("mouseleave", up);
-  button.addEventListener("touchend", up);
-  button.addEventListener("touchcancel", up);
-}
-
-window.addEventListener("keydown", (event) => {
-  if (["ArrowLeft", "ArrowRight", "KeyA", "KeyD", "Space", "Enter", "KeyR"].includes(event.code)) {
-    event.preventDefault();
-  }
-
-  if ((event.code === "ArrowLeft" || event.code === "KeyA") && game.mode === "playing") setInput("left", true);
-  if ((event.code === "ArrowRight" || event.code === "KeyD") && game.mode === "playing") setInput("right", true);
-
-  if (event.code === "Space" && !input.jump) {
-    setInput("jump", true);
-    startCharge();
-  }
-
-  if (event.code === "Enter") {
-    if (game.mode === "title" || game.mode === "won") startRun();
-  }
-
-  if (event.code === "KeyR") {
-    startRun();
-  }
-});
-
-window.addEventListener("keyup", (event) => {
-  if (event.code === "ArrowLeft" || event.code === "KeyA") setInput("left", false);
-  if (event.code === "ArrowRight" || event.code === "KeyD") setInput("right", false);
-
-  if (event.code === "Space") {
-    setInput("jump", false);
-    releaseJump();
-  }
-});
-
-for (const button of document.querySelectorAll("button[data-key]")) {
-  const key = button.dataset.key;
-  if (key === "jump") {
-    bindPress(
-      button,
-      () => {
-        if (!input.jump) {
-          setInput("jump", true);
-          startCharge();
-        }
-      },
-      () => {
-        setInput("jump", false);
-        releaseJump();
-      }
-    );
-  } else {
-    bindPress(
-      button,
-      () => {
-        if (game.mode === "playing") setInput(key, true);
-      },
-      () => {
-        setInput(key, false);
-      }
-    );
-  }
-}
-
-bindPress(startBtn, () => {
-  if (game.mode === "title" || game.mode === "won") {
-    startRun();
-  } else {
-    setStatus("Run already active.");
-  }
-});
-
-bindPress(restartBtn, () => {
-  startRun();
-});
-
-bindPress(fullscreenBtn, async () => {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen();
-    return;
-  }
-
-  if (stageShell.requestFullscreen) {
-    await stageShell.requestFullscreen();
-  }
-});
-
-document.addEventListener("fullscreenchange", () => {
-  fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
-});
-
-function update(dt) {
-  if (game.mode !== "playing") return;
-
-  if (input.left) player.facing = -1;
-  if (input.right) player.facing = 1;
-
-  if (player.charging && input.jump && player.grounded) {
-    player.charge = Math.min(player.maxCharge, player.charge + dt * 1.08);
-  }
-
-  for (const platform of level.platforms) {
-    if (platform.type === "crumbly" && platform.timer > 0) {
-      platform.timer -= dt;
-      if (platform.timer <= 0) {
-        platform.broken = true;
-        platform.timer = 0;
+function updatePlatforms(dt) {
+  for (const p of world.platforms) {
+    if (p.type === "crumbly" && p.timer > 0) {
+      p.timer -= dt;
+      if (p.timer <= 0) {
+        p.broken = true;
+        p.timer = 0;
       }
     }
+
+    const prev = p.xNow;
+    p.xNow = platformXAt(p, game.t);
+    p.dx = p.xNow - prev;
   }
+}
+
+function getInputForPlayer(playerIndex) {
+  if (playerIndex === 0) {
+    if (game.type === "solo") {
+      return {
+        left: keyState.ArrowLeft || touchInput.left,
+        right: keyState.ArrowRight || touchInput.right,
+        jump: keyState.Space || touchInput.jump,
+      };
+    }
+
+    return {
+      left: keyState.ArrowLeft,
+      right: keyState.ArrowRight,
+      jump: keyState.Slash,
+    };
+  }
+
+  return {
+    left: keyState.KeyA,
+    right: keyState.KeyD,
+    jump: keyState.KeyW,
+  };
+}
+
+function updatePlayer(player, controls, dt) {
+  if (controls.left) player.facing = -1;
+  if (controls.right) player.facing = 1;
+
+  if (controls.jump && !player.jumpHeld && player.grounded) {
+    player.charging = true;
+    player.charge = 0;
+  }
+
+  if (player.charging && controls.jump && player.grounded) {
+    player.charge = Math.min(player.maxCharge, player.charge + dt * 1.06);
+  }
+
+  if (!controls.jump && player.jumpHeld && player.charging && player.grounded) {
+    const c = Math.max(0.08, player.charge);
+    player.vy = -(500 + c * 930);
+    player.vx = player.facing * (175 + c * 370);
+    player.grounded = false;
+    player.charging = false;
+    player.charge = 0;
+  }
+
+  player.jumpHeld = controls.jump;
 
   player.vy += GRAVITY * dt;
   player.vx *= AIR_DRAG;
@@ -437,211 +352,322 @@ function update(dt) {
   }
 
   player.grounded = false;
-  let landedPlatform = null;
+  let landed = null;
 
-  for (const platform of level.platforms) {
-    if (platform.broken) continue;
+  for (const p of world.platforms) {
+    if (p.broken) continue;
 
-    const landed =
-      prevY + player.h <= platform.y &&
-      player.y + player.h >= platform.y &&
-      player.x + player.w > platform.x &&
-      player.x < platform.x + platform.w;
+    const px = p.xNow;
+    const touched =
+      prevY + player.h <= p.y &&
+      player.y + player.h >= p.y &&
+      player.x + player.w > px &&
+      player.x < px + p.w;
 
-    if (landed && player.vy >= 0) {
-      player.y = platform.y - player.h;
+    if (touched && player.vy >= 0) {
+      player.y = p.y - player.h;
       player.grounded = true;
-      landedPlatform = platform;
+      landed = p;
 
-      if (platform.type === "spring") {
-        player.vy = -Math.max(760, Math.abs(player.vy) * 0.94);
+      if (p.type === "spring") {
+        player.vy = -Math.max(760, Math.abs(player.vy) * 0.96);
         player.grounded = false;
-        landedPlatform = null;
       } else {
         player.vy = 0;
       }
 
-      if (platform.type === "crumbly" && platform.timer <= 0) {
-        platform.timer = 0.18;
-      }
+      if (p.type === "crumbly" && p.timer <= 0) p.timer = 0.18;
+      if (p.type === "moving") player.x += p.dx;
     }
   }
 
-  for (const spike of level.spikes) {
-    const hit =
-      player.x + player.w > spike.x &&
-      player.x < spike.x + spike.w &&
-      player.y + player.h > spike.y &&
-      player.y < spike.y + spike.h;
+  for (const s of world.spikes) {
+    const hit = player.x + player.w > s.x && player.x < s.x + s.w && player.y + player.h > s.y && player.y < s.y + s.h;
     if (hit) {
       player.x = prevX;
       player.y = prevY;
-      loseLife("Spikes! You tumble back to your checkpoint.");
+      losePlayer(player, "spike");
       return;
     }
   }
 
   if (player.y > FALL_LIMIT) {
-    loseLife("A long fall. Regain focus and climb again.");
+    losePlayer(player, "fall");
     return;
   }
 
-  game.currentHeight = Math.max(0, Math.floor((BASE_Y - player.y) / 10));
-  if (game.currentHeight > game.best) {
-    game.best = game.currentHeight;
-    localStorage.setItem(STORAGE_KEY, String(game.best));
-  }
+  player.height = Math.max(0, Math.floor((BASE_Y - player.y) / 10));
 
-  maybeSetCheckpoint(landedPlatform);
-  maybeAdvanceStory();
+  if (player.height >= player.nextCheckpoint && landed) {
+    player.nextCheckpoint += 300;
+    player.checkpointName = checkpointNameForHeight(player.height);
+    player.respawnX = landed.xNow + landed.w * 0.5 - player.w * 0.5;
+    player.respawnY = landed.y - player.h;
+    if (game.type === "solo") {
+      setStatus(`Checkpoint reached: ${player.checkpointName}`);
+    }
+  }
 
   if (player.y <= GOAL_Y) {
     game.mode = "won";
-    game.chapter = "Epilogue - Bell of Dawn";
-    storyEl.textContent = "The bell roars across the valley. The city wakes to your victory.";
-    setStatus("Crown claimed. Press Enter to begin a new legend.");
+    game.winner = player.name;
+    if (game.type === "solo") {
+      chapterEl.textContent = "Epilogue - Bell of Dawn";
+      storyEl.textContent = "The bell roars across the valley. You did not stop climbing.";
+      setStatus("Crown claimed. Press Enter to play again.");
+    } else {
+      setStatus(`${player.name} wins the race to the crown.`);
+    }
+  }
+}
+
+function losePlayer(player, reason) {
+  player.falls += 1;
+  player.x = player.respawnX;
+  player.y = player.respawnY;
+  player.vx = 0;
+  player.vy = 0;
+  player.grounded = false;
+  player.charging = false;
+  player.charge = 0;
+  game.shake = 0.24;
+
+  if (game.type === "solo") {
+    setStatus(reason === "spike" ? "Spikes hit. Back to checkpoint." : "Long fall. Back to checkpoint.");
+  }
+}
+
+function updateStory() {
+  if (game.type === "solo") {
+    const p1 = players[0];
+    if (p1.height > game.soloBest) {
+      game.soloBest = p1.height;
+      localStorage.setItem(STORAGE_KEY, String(game.soloBest));
+    }
+
+    const next = story[storyIndex + 1];
+    if (next && p1.height >= next.at) {
+      storyIndex += 1;
+      chapterEl.textContent = next.chapter;
+      storyEl.textContent = next.line;
+      setStatus(`New chapter: ${next.chapter}`);
+    }
+    return;
   }
 
-  const targetCamera = player.y - HEIGHT * 0.6;
-  game.cameraY += (targetCamera - game.cameraY) * Math.min(1, dt * 5.2);
-  game.cameraY = clamp(game.cameraY, WORLD_TOP, BASE_Y + 40);
+  raceStoryTimer += 1;
+  if (raceStoryTimer % 540 === 0) {
+    raceLineIndex = (raceLineIndex + 1) % raceStory.length;
+    storyEl.textContent = raceStory[raceLineIndex];
+  }
+}
 
+function syncHud() {
+  const p1 = players[0];
+  const p2 = players[1];
+
+  if (game.type === "solo") {
+    heightLabelEl.textContent = "Height";
+    bestLabelEl.textContent = "Best";
+    fallsLabelEl.textContent = "Falls";
+    checkpointLabelEl.textContent = "Checkpoint";
+
+    heightEl.textContent = `${p1.height}m`;
+    bestEl.textContent = `${game.soloBest}m`;
+    fallsEl.textContent = String(p1.falls);
+    checkpointEl.textContent = p1.checkpointName;
+    return;
+  }
+
+  heightLabelEl.textContent = "P1 Height";
+  bestLabelEl.textContent = "P2 Height";
+  fallsLabelEl.textContent = "Lead";
+  checkpointLabelEl.textContent = "Race";
+
+  heightEl.textContent = `${p1.height}m`;
+  bestEl.textContent = `${p2.height}m`;
+
+  const lead = p1.height - p2.height;
+  if (lead === 0) fallsEl.textContent = "Tie";
+  if (lead > 0) fallsEl.textContent = `P1 +${lead}m`;
+  if (lead < 0) fallsEl.textContent = `P2 +${Math.abs(lead)}m`;
+
+  const race = Math.max(p1.height, p2.height);
+  const target = Math.max(1, Math.floor((BASE_Y - GOAL_Y) / 10));
+  checkpointEl.textContent = `${Math.min(100, Math.floor((race / target) * 100))}%`;
+}
+
+function update(dt) {
+  if (game.mode !== "playing") return;
+
+  game.t += dt;
+  updatePlatforms(dt);
+
+  updatePlayer(players[0], getInputForPlayer(0), dt);
+  if (game.type === "versus") {
+    updatePlayer(players[1], getInputForPlayer(1), dt);
+  }
+
+  updateStory();
+
+  const camTarget = game.type === "solo"
+    ? players[0].y - HEIGHT * 0.62
+    : Math.min(players[0].y, players[1].y) - HEIGHT * 0.64;
+
+  game.cameraY += (camTarget - game.cameraY) * Math.min(1, dt * 5.2);
+  game.cameraY = clamp(game.cameraY, WORLD_TOP, BASE_Y + 40);
   if (game.shake > 0) game.shake = Math.max(0, game.shake - dt);
+
   syncHud();
 }
 
 function drawBackground() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  gradient.addColorStop(0, "#a4c9ea");
-  gradient.addColorStop(0.58, "#f3dcc0");
-  gradient.addColorStop(1, "#db9e76");
-  ctx.fillStyle = gradient;
+  const g = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+  g.addColorStop(0, "#95bfe5");
+  g.addColorStop(0.52, "#f3dbc0");
+  g.addColorStop(1, "#cf8f67");
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const parallaxFar = game.cameraY * 0.06;
-  const parallaxNear = game.cameraY * 0.12;
+  const far = game.cameraY * 0.05;
+  const near = game.cameraY * 0.1;
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.46)";
-  for (let i = 0; i < 10; i += 1) {
-    const x = ((i * 92 + parallaxNear) % (WIDTH + 140)) - 70;
-    const y = 80 + i * 86;
+  ctx.fillStyle = "rgba(255,255,255,0.42)";
+  for (let i = 0; i < 12; i += 1) {
+    const x = ((i * 96 + near) % (WIDTH + 160)) - 80;
+    const y = 70 + i * 80;
     ctx.beginPath();
-    ctx.ellipse(x, y, 46, 15, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, 44, 14, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = "rgba(83, 57, 43, 0.2)";
-  for (let i = 0; i < 7; i += 1) {
-    const x = i * 105 - (parallaxFar % 105);
+  ctx.fillStyle = "rgba(80, 54, 42, 0.2)";
+  for (let i = 0; i < 8; i += 1) {
+    const x = i * 100 - (far % 100);
     ctx.beginPath();
     ctx.moveTo(x, HEIGHT);
-    ctx.lineTo(x + 55, HEIGHT - 130 - (i % 2) * 18);
+    ctx.lineTo(x + 52, HEIGHT - 150 - (i % 2) * 18);
     ctx.lineTo(x + 140, HEIGHT);
     ctx.fill();
   }
 }
 
 function drawGoal() {
-  const gy = GOAL_Y - game.cameraY;
-  if (gy < -150 || gy > HEIGHT + 100) return;
+  const y = GOAL_Y - game.cameraY;
+  if (y < -160 || y > HEIGHT + 100) return;
 
-  ctx.fillStyle = "#6a4430";
-  ctx.fillRect(WIDTH * 0.5 - 5, gy - 95, 10, 105);
+  ctx.fillStyle = "#6b4632";
+  ctx.fillRect(WIDTH * 0.5 - 5, y - 100, 10, 108);
 
-  ctx.fillStyle = "#7f271a";
-  ctx.fillRect(WIDTH * 0.5 + 5, gy - 128, 36, 24);
+  ctx.fillStyle = "#7b2418";
+  ctx.fillRect(WIDTH * 0.5 + 5, y - 132, 36, 24);
 
-  ctx.fillStyle = "#fac55d";
+  ctx.fillStyle = "#f9c45a";
   ctx.beginPath();
-  ctx.arc(WIDTH * 0.5, gy - 104, 19, 0, Math.PI * 2);
+  ctx.arc(WIDTH * 0.5, y - 104, 19, 0, Math.PI * 2);
   ctx.fill();
 }
 
 function drawPlatforms() {
-  for (const platform of level.platforms) {
-    if (platform.broken) continue;
+  for (const p of world.platforms) {
+    if (p.broken) continue;
 
-    const py = platform.y - game.cameraY;
+    const py = p.y - game.cameraY;
     if (py < -30 || py > HEIGHT + 30) continue;
 
-    if (platform.type === "solid") ctx.fillStyle = "#8f5f45";
-    if (platform.type === "crumbly") ctx.fillStyle = "#a28161";
-    if (platform.type === "spring") ctx.fillStyle = "#3d644f";
+    if (p.type === "solid") ctx.fillStyle = "#8c5f47";
+    if (p.type === "crumbly") ctx.fillStyle = "#a48261";
+    if (p.type === "spring") ctx.fillStyle = "#3f684f";
+    if (p.type === "moving") ctx.fillStyle = "#4d5872";
 
-    if (platform.timer > 0) ctx.globalAlpha = 0.72;
-    ctx.fillRect(platform.x, py, platform.w, platform.h);
-    ctx.fillStyle = "rgba(255, 237, 204, 0.34)";
-    ctx.fillRect(platform.x + 4, py + 3, Math.max(8, platform.w - 8), 4);
+    if (p.timer > 0) ctx.globalAlpha = 0.72;
+    ctx.fillRect(p.xNow, py, p.w, p.h);
+    ctx.fillStyle = "rgba(255, 239, 211, 0.34)";
+    ctx.fillRect(p.xNow + 4, py + 3, Math.max(8, p.w - 8), 4);
     ctx.globalAlpha = 1;
   }
 }
 
 function drawSpikes() {
-  ctx.fillStyle = "#6b3b35";
-  for (const spike of level.spikes) {
-    const sy = spike.y - game.cameraY;
+  ctx.fillStyle = "#6d3a34";
+  for (const s of world.spikes) {
+    const sy = s.y - game.cameraY;
     if (sy < -24 || sy > HEIGHT + 24) continue;
 
-    const count = Math.max(2, Math.floor(spike.w / 10));
-    const slice = spike.w / count;
+    const count = Math.max(2, Math.floor(s.w / 10));
+    const slice = s.w / count;
     for (let i = 0; i < count; i += 1) {
-      const x0 = spike.x + i * slice;
+      const x0 = s.x + i * slice;
       ctx.beginPath();
-      ctx.moveTo(x0, sy + spike.h);
+      ctx.moveTo(x0, sy + s.h);
       ctx.lineTo(x0 + slice * 0.5, sy);
-      ctx.lineTo(x0 + slice, sy + spike.h);
+      ctx.lineTo(x0 + slice, sy + s.h);
       ctx.fill();
     }
   }
 }
 
-function drawPlayer() {
+function drawPlayer(player) {
+  if (game.type === "solo" && player.name === "P2") return;
+
   const px = player.x;
   const py = player.y - game.cameraY;
 
-  ctx.fillStyle = "#1f1a18";
+  ctx.fillStyle = player.trimColor;
   ctx.fillRect(px, py, player.w, player.h);
-  ctx.fillStyle = "#ea6f40";
+  ctx.fillStyle = player.mainColor;
   ctx.fillRect(px + 4, py + 7, player.w - 8, player.h - 11);
 
   const eyeX = player.facing > 0 ? px + player.w - 8 : px + 4;
   ctx.fillStyle = "#fff";
   ctx.fillRect(eyeX, py + 10, 4, 4);
 
-  if (player.charging && player.grounded) {
-    const ratio = player.charge / player.maxCharge;
-    const bw = 84;
+  ctx.fillStyle = "rgba(18, 14, 11, 0.72)";
+  ctx.font = "700 12px Space Grotesk";
+  ctx.fillText(player.name, px - 2, py - 5);
+
+  if (player.grounded && player.charging) {
+    const r = player.charge / player.maxCharge;
+    const bw = 74;
     const bx = px + player.w * 0.5 - bw * 0.5;
-    const by = py - 15;
-    ctx.fillStyle = "rgba(25, 17, 12, 0.5)";
-    ctx.fillRect(bx, by, bw, 7);
-    ctx.fillStyle = "#ff7f4d";
-    ctx.fillRect(bx, by, bw * ratio, 7);
+    const by = py - 16;
+    ctx.fillStyle = "rgba(22, 15, 11, 0.46)";
+    ctx.fillRect(bx, by, bw, 6);
+    ctx.fillStyle = player.mainColor;
+    ctx.fillRect(bx, by, bw * r, 6);
   }
 }
 
 function drawOverlay() {
   if (game.mode === "playing") return;
 
-  ctx.fillStyle = "rgba(22, 16, 12, 0.76)";
-  ctx.fillRect(36, HEIGHT * 0.27, WIDTH - 72, 240);
+  ctx.fillStyle = "rgba(20, 14, 11, 0.78)";
+  ctx.fillRect(36, HEIGHT * 0.27, WIDTH - 72, 250);
   ctx.textAlign = "center";
 
   if (game.mode === "title") {
-    ctx.fillStyle = "#fff1d2";
+    ctx.fillStyle = "#ffefcf";
     ctx.font = "700 46px Space Grotesk";
     ctx.fillText("SKYBOUND CROWN", WIDTH * 0.5, HEIGHT * 0.38);
-    ctx.font = "500 24px Space Grotesk";
-    ctx.fillText("Hold jump, release to launch", WIDTH * 0.5, HEIGHT * 0.46);
-    ctx.fillText("Press Enter or Start", WIDTH * 0.5, HEIGHT * 0.52);
+    ctx.font = "500 22px Space Grotesk";
+    if (game.type === "solo") {
+      ctx.fillText("Solo climb across a giant mountain", WIDTH * 0.5, HEIGHT * 0.45);
+    } else {
+      ctx.fillText("Two-player race to the crown", WIDTH * 0.5, HEIGHT * 0.45);
+    }
+    ctx.fillText("Press Enter or Start", WIDTH * 0.5, HEIGHT * 0.51);
   }
 
   if (game.mode === "won") {
-    ctx.fillStyle = "#ffeccc";
-    ctx.font = "700 52px Space Grotesk";
+    ctx.fillStyle = "#ffedca";
+    ctx.font = "700 48px Space Grotesk";
     ctx.fillText("CROWN CLAIMED", WIDTH * 0.5, HEIGHT * 0.39);
     ctx.font = "500 24px Space Grotesk";
-    ctx.fillText(`Final Height: ${game.currentHeight}m`, WIDTH * 0.5, HEIGHT * 0.47);
+    if (game.type === "solo") {
+      ctx.fillText(`Final Height: ${players[0].height}m`, WIDTH * 0.5, HEIGHT * 0.47);
+    } else {
+      ctx.fillText(`${game.winner} wins the race`, WIDTH * 0.5, HEIGHT * 0.47);
+    }
     ctx.fillText("Press Enter or Restart", WIDTH * 0.5, HEIGHT * 0.53);
   }
 
@@ -659,20 +685,120 @@ function render() {
   drawGoal();
   drawPlatforms();
   drawSpikes();
-  drawPlayer();
+  drawPlayer(players[0]);
+  drawPlayer(players[1]);
   drawOverlay();
   ctx.restore();
 }
 
-let last = performance.now();
+function bindPointer(button, onDown, onUp) {
+  const down = (event) => {
+    event.preventDefault();
+    onDown();
+  };
+  button.addEventListener("mousedown", down);
+  button.addEventListener("touchstart", down, { passive: false });
+
+  if (!onUp) return;
+
+  const up = (event) => {
+    event.preventDefault();
+    onUp();
+  };
+  button.addEventListener("mouseup", up);
+  button.addEventListener("mouseleave", up);
+  button.addEventListener("touchend", up);
+  button.addEventListener("touchcancel", up);
+}
+
+for (const button of document.querySelectorAll("button[data-key]")) {
+  const key = button.dataset.key;
+  if (key === "jump") {
+    bindPointer(
+      button,
+      () => {
+        touchInput.jump = true;
+        button.classList.add("active");
+      },
+      () => {
+        touchInput.jump = false;
+        button.classList.remove("active");
+      }
+    );
+    continue;
+  }
+
+  bindPointer(
+    button,
+    () => {
+      touchInput[key] = true;
+      button.classList.add("active");
+    },
+    () => {
+      touchInput[key] = false;
+      button.classList.remove("active");
+    }
+  );
+}
+
+bindPointer(soloBtn, () => chooseMode("solo"));
+bindPointer(versusBtn, () => chooseMode("versus"));
+bindPointer(startBtn, () => startRun());
+bindPointer(restartBtn, () => startRun());
+bindPointer(fullscreenBtn, async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+    return;
+  }
+  if (stageShell.requestFullscreen) {
+    await stageShell.requestFullscreen();
+  }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+});
+
+window.addEventListener("keydown", (event) => {
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "KeyA", "KeyD", "KeyW", "Space", "Slash", "Enter", "KeyR"].includes(event.code)) {
+    event.preventDefault();
+  }
+
+  keyState[event.code] = true;
+
+  if (event.code === "Enter" && (game.mode === "title" || game.mode === "won")) startRun();
+  if (event.code === "KeyR") startRun();
+});
+
+window.addEventListener("keyup", (event) => {
+  keyState[event.code] = false;
+});
+
 function tick(now) {
-  const dt = Math.min(0.033, (now - last) / 1000);
-  last = now;
+  const dt = Math.min(0.033, (now - tick.last) / 1000);
+  tick.last = now;
   update(dt);
   render();
   requestAnimationFrame(tick);
 }
+tick.last = performance.now();
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function prand(n) {
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+updateModeButtons();
 syncHud();
-storyEl.textContent = storyMoments[0].line;
+chapterEl.textContent = story[0].chapter;
+storyEl.textContent = story[0].line;
+setStatus("Choose Solo or Versus, then press Start.");
 requestAnimationFrame(tick);

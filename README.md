@@ -1,6 +1,6 @@
 # Skybound Crown
 
-A free browser platformer inspired by Jump King, with checkpoints, story chapters, and fullscreen play.
+A free browser platformer inspired by Jump King, with a giant map, story chapters, fullscreen play, and local 2-player versus mode.
 
 ## Run locally
 
@@ -23,10 +23,14 @@ Open `index.html` in your browser.
 
 ## Controls
 
-- Face left/right: `A`/`D` or arrow keys
-- Hold jump: `Space`
-- Release jump: let go of `Space`
+- Solo mode (single player)
+  - Face: `Left` / `Right`
+  - Hold jump: `Space`
+  - Release jump: let go of `Space`
+  - Mobile: use on-screen buttons
+- Versus mode (local multiplayer on one keyboard)
+  - Player 1: `Left` / `Right`, hold+release `/`
+  - Player 2: `A` / `D`, hold+release `W`
 - Start run: `Enter`
 - Restart run: `R`
-- Mobile: use on-screen buttons
 - Fullscreen: use the `Fullscreen` button

@@ -1,12 +1,11 @@
 :root {
-  --bg-top: #f3ead9;
-  --bg-mid: #f9f3e8;
-  --bg-bottom: #fffdfa;
-  --ink: #1d1a18;
-  --brand: #d9592f;
-  --brand-deep: #a93b19;
-  --panel: rgba(255, 255, 255, 0.78);
-  --line: rgba(29, 26, 24, 0.15);
+  --ink: #17120f;
+  --paper: #f8f0e4;
+  --line: rgba(30, 22, 16, 0.28);
+  --panel: rgba(254, 248, 236, 0.76);
+  --accent: #dd7a3a;
+  --accent-deep: #b4501f;
+  --danger: #7f2f2a;
 }
 
 * {
@@ -15,208 +14,195 @@
 
 html,
 body {
+  width: 100%;
+  height: 100%;
   margin: 0;
-  min-height: 100%;
+  overflow: hidden;
 }
 
 body {
   font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(1300px 500px at 20% -15%, #ffe6b7 0%, transparent 70%),
-    radial-gradient(1000px 600px at 100% 10%, #ffd1b6 0%, transparent 72%),
-    linear-gradient(180deg, var(--bg-top), var(--bg-mid) 45%, var(--bg-bottom));
+    radial-gradient(1200px 700px at 10% -20%, #ffdca9 0%, transparent 70%),
+    radial-gradient(1000px 800px at 100% 0%, #f6ba96 0%, transparent 74%),
+    linear-gradient(180deg, #e9d7bf, #f7eddc);
 }
 
-.page {
-  width: min(1000px, 94vw);
-  margin: 0 auto;
-  padding: 22px 0 28px;
-  animation: rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1);
+.game-app {
+  width: 100vw;
+  height: 100vh;
+  padding: 10px;
 }
 
-.hero {
-  margin-bottom: 12px;
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: 0.78rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #84513a;
-}
-
-h1 {
-  margin: 4px 0 6px;
-  font-family: "Bungee", "Space Grotesk", sans-serif;
-  font-weight: 400;
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  color: #6a2f1f;
-}
-
-.subtitle {
-  margin: 0;
-  color: #5f4f44;
-}
-
-.game-shell {
+.stage-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
   border: 1px solid var(--line);
-  background: var(--panel);
-  backdrop-filter: blur(5px);
-  border-radius: 18px;
-  padding: 14px;
-  box-shadow: 0 10px 40px rgba(69, 49, 39, 0.14);
-}
-
-.hud {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.action-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.action-row #status {
-  margin: 0;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid var(--line);
-  color: #5a483d;
-  font-size: 0.9rem;
-}
-
-.hud p {
-  margin: 0;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.hud span {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #7b6a5d;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 20px 65px rgba(47, 33, 25, 0.25);
 }
 
 #game {
   display: block;
-  width: min(100%, 480px);
-  height: auto;
-  margin: 0 auto;
-  border-radius: 14px;
-  border: 2px solid #d7c9be;
-  background: linear-gradient(180deg, #d6e4ee, #f0e4cf 70%, #edd3ad);
+  width: 100%;
+  height: 100%;
+  background: #d9e3ee;
+}
+
+.overlay {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.topbar {
+  top: 0;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(247, 237, 221, 0.95), rgba(247, 237, 221, 0.58), transparent);
+}
+
+.title-wrap h1 {
+  margin: 2px 0 6px;
+  font-family: "Bungee", "Space Grotesk", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  font-size: clamp(1.1rem, 2.3vw, 1.9rem);
+  color: #5d2619;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #7f553f;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats p {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 251, 242, 0.9);
+}
+
+.stats span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #735645;
+}
+
+.bottombar {
+  bottom: 0;
+  padding: 8px 10px 10px;
+  background: linear-gradient(0deg, rgba(247, 237, 221, 0.96), rgba(247, 237, 221, 0.66), transparent);
+  pointer-events: auto;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.chapter,
+.story,
+.status,
+.legend {
+  margin: 0 0 5px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.chapter {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #4f2d1e;
+}
+
+.story,
+.status,
+.legend {
+  font-size: 0.8rem;
+  color: #5f4a3c;
 }
 
 .controls {
-  margin-top: 12px;
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
 .controls-left {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 button {
-  border: 1px solid rgba(33, 27, 22, 0.2);
-  border-radius: 12px;
-  background: linear-gradient(180deg, #fff8f0, #f7e8d8);
-  color: #3a2a1f;
+  pointer-events: auto;
+  border: 1px solid rgba(42, 29, 21, 0.24);
+  border-radius: 11px;
+  background: linear-gradient(180deg, #fff8eb, #f5e3cc);
+  color: #2d1f17;
   font: inherit;
   font-weight: 700;
-  padding: 12px 20px;
-  min-height: 48px;
+  font-size: 0.88rem;
+  padding: 8px 12px;
+  min-height: 40px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-button:active,
-button.active {
-  transform: translateY(1px) scale(0.99);
-  background: linear-gradient(180deg, #ffe4bf, #ffd7a3);
+button.accent {
+  background: linear-gradient(180deg, #f2b163, #df7e35);
+  color: #2c150a;
+  border-color: rgba(104, 54, 23, 0.44);
 }
 
 button.jump {
   flex: 1;
-  background: linear-gradient(180deg, #ff9a6f, #ea6642);
-  color: #2b150d;
-  border-color: rgba(101, 40, 24, 0.35);
+  background: linear-gradient(180deg, #ffa169, #e05f3e);
+  border-color: rgba(104, 43, 30, 0.4);
 }
 
-button.accent {
-  background: linear-gradient(180deg, #f7b761, #e68c36);
-  border-color: rgba(109, 57, 21, 0.32);
+button.active,
+button:active {
+  transform: translateY(1px) scale(0.99);
+  background: linear-gradient(180deg, #ffe6ba, #ffc275);
 }
 
-.legend {
-  margin-top: 12px;
-  font-size: 0.9rem;
-  color: #5d4d41;
+.stage-shell:fullscreen {
+  border-radius: 0;
+  border: 0;
 }
 
-.legend p {
-  margin: 6px 0;
-}
-
-kbd {
-  padding: 2px 6px;
-  border: 1px solid #cdb8a8;
-  border-radius: 6px;
-  background: #fff;
-  font-family: inherit;
-}
-
-@keyframes rise-in {
-  from {
-    transform: translateY(16px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@media (max-width: 640px) {
-  .page {
-    width: 96vw;
-    padding-top: 12px;
+@media (max-width: 740px) {
+  .game-app {
+    padding: 0;
   }
 
-  .game-shell {
-    padding: 10px;
+  .stage-shell {
+    border-radius: 0;
   }
 
   .controls {
     flex-direction: column;
-  }
-
-  .action-row {
-    align-items: stretch;
-  }
-
-  .action-row button {
-    flex: 1;
-  }
-
-  .action-row #status {
-    width: 100%;
   }
 
   .controls-left {
@@ -226,5 +212,9 @@ kbd {
   .controls-left button,
   .jump {
     flex: 1;
+  }
+
+  .actions {
+    flex-wrap: wrap;
   }
 }

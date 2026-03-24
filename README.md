@@ -1,6 +1,6 @@
 # Skybound Crown
 
-A free browser platformer inspired by Jump King.
+A free browser platformer inspired by Jump King, with checkpoints, story chapters, and fullscreen play.
 
 ## Run locally
 
@@ -26,4 +26,7 @@ Open `index.html` in your browser.
 - Face left/right: `A`/`D` or arrow keys
 - Hold jump: `Space`
 - Release jump: let go of `Space`
+- Start run: `Enter`
+- Restart run: `R`
 - Mobile: use on-screen buttons
+- Fullscreen: use the `Fullscreen` button

@@ -6,40 +6,47 @@ const bestEl = document.getElementById("best");
 const fallsEl = document.getElementById("falls");
 const checkpointEl = document.getElementById("checkpoint");
 const statusEl = document.getElementById("status");
+const chapterEl = document.getElementById("chapter");
+const storyEl = document.getElementById("storyLine");
+
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
+const stageShell = document.getElementById("stageShell");
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
-const WORLD_BOTTOM = 710;
-const WORLD_TOP = -7200;
+const BASE_Y = 860;
+const WORLD_TOP = -7600;
 const GOAL_Y = WORLD_TOP + 120;
-const BASE_Y = 628;
 
-const GRAVITY = 2050;
-const AIR_DRAG = 0.994;
-const WALL_BOUNCE = -0.22;
-const FALL_LIMIT = 880;
+const GRAVITY = 2140;
+const AIR_DRAG = 0.992;
+const WALL_BOUNCE = -0.2;
+const FALL_LIMIT = 1040;
+const STORAGE_KEY = "skybound-crown-best-height";
 
-const STORAGE_KEY = "skybound-crown-best";
-
-const input = { left: false, right: false, jump: false };
+const input = {
+  left: false,
+  right: false,
+  jump: false,
+};
 
 const player = {
   x: WIDTH * 0.5 - 13,
-  y: BASE_Y - 36,
+  y: BASE_Y - 38,
   w: 26,
-  h: 36,
+  h: 38,
   vx: 0,
   vy: 0,
   facing: 1,
   grounded: false,
   charging: false,
   charge: 0,
-  maxCharge: 1.33,
+  maxCharge: 1.28,
 };
 
-const run = {
+const game = {
   mode: "title",
   cameraY: 0,
   shake: 0,
@@ -47,95 +54,119 @@ const run = {
   best: Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10) || 0,
   currentHeight: 0,
   checkpointHeight: 0,
-  nextCheckpointMilestone: 120,
   checkpointName: "Base Camp",
+  nextCheckpoint: 160,
   respawnX: WIDTH * 0.5 - 13,
-  respawnY: BASE_Y - 36,
-  deathMessage: "",
+  respawnY: BASE_Y - 38,
+  storyIndex: 0,
+  chapter: "Chapter I - The Foot of the Mountain",
 };
 
-const level = buildLevel(3407);
+const storyMoments = [
+  {
+    at: 0,
+    chapter: "Chapter I - The Foot of the Mountain",
+    line: "The old bell is silent. Climb and ring it from the sky keep.",
+  },
+  {
+    at: 220,
+    chapter: "Chapter II - Windcut Ledges",
+    line: "Cold wind cuts through your armor. The path starts to narrow.",
+  },
+  {
+    at: 560,
+    chapter: "Chapter III - The Cracked Causeway",
+    line: "Ruined stones crumble beneath your feet. Hesitation means falling.",
+  },
+  {
+    at: 980,
+    chapter: "Chapter IV - The Choir of Spires",
+    line: "The mountain whispers. Spikes wait where pride jumps first.",
+  },
+  {
+    at: 1480,
+    chapter: "Chapter V - Cloud Bastion",
+    line: "You pass the clouds. The crown tower finally appears above.",
+  },
+  {
+    at: 2140,
+    chapter: "Final Chapter - The Bell Keep",
+    line: "One final ascent. The city below waits for the bell to ring.",
+  },
+];
 
-function mulberry32(seed) {
-  let t = seed;
-  return function rand() {
-    t += 0x6d2b79f5;
-    let v = Math.imul(t ^ (t >>> 15), t | 1);
-    v ^= v + Math.imul(v ^ (v >>> 7), v | 61);
-    return ((v ^ (v >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const level = buildLevel();
 
-function buildLevel(seed) {
-  const rand = mulberry32(seed);
+function buildLevel() {
   const platforms = [];
   const spikes = [];
 
-  platforms.push({ x: WIDTH * 0.5 - 100, y: BASE_Y, w: 200, h: 24, type: "solid", broken: false, timer: 0 });
+  platforms.push({ x: WIDTH * 0.5 - 120, y: BASE_Y, w: 240, h: 26, type: "solid", broken: false, timer: 0 });
 
-  let y = BASE_Y - 110;
-  let side = 1;
-  let layer = 0;
+  let y = BASE_Y - 100;
+  let x = WIDTH * 0.5 - 70;
+  let w = 140;
+  let lane = 1;
+  let step = 0;
 
-  while (y > WORLD_TOP + 180) {
+  while (y > WORLD_TOP + 200) {
     const progress = (BASE_Y - y) / (BASE_Y - WORLD_TOP);
-    const gap = 92 + progress * 58 + rand() * 26;
+    const difficulty = Math.min(1, progress * 1.18);
+
+    const minGap = 88 + difficulty * 52;
+    const maxGap = 108 + difficulty * 72;
+    const gap = minGap + pseudo(step * 13 + 7) * (maxGap - minGap);
     y -= gap;
-    layer += 1;
 
-    const minW = 68;
-    const maxW = 140 - progress * 55;
-    const w = Math.max(minW, maxW + rand() * 16);
-    const margin = 28;
-    side *= -1;
+    const minW = 74;
+    const maxW = 158 - difficulty * 56;
+    w = clamp(maxW - pseudo(step * 11 + 17) * 18, minW, maxW);
 
-    let x;
-    if (side > 0) {
-      x = margin + rand() * (WIDTH * 0.4);
+    const maxShift = 120 + difficulty * 44;
+    const shift = (pseudo(step * 29 + 3) - 0.5) * 2 * maxShift;
+
+    if (step % 5 === 0) {
+      lane = (lane + 1) % 3;
+      const laneTarget = lane === 0 ? 70 : lane === 1 ? WIDTH * 0.5 - w * 0.5 : WIDTH - w - 70;
+      x += (laneTarget - x) * 0.64;
     } else {
-      x = WIDTH - w - margin - rand() * (WIDTH * 0.4);
+      x += shift;
     }
-    x = Math.max(margin, Math.min(WIDTH - w - margin, x));
+
+    x = clamp(x, 34, WIDTH - w - 34);
 
     let type = "solid";
-    if (progress > 0.2 && progress < 0.9 && rand() < 0.15) type = "crumbly";
-    if (progress > 0.58 && rand() < 0.08) type = "spring";
+    if (difficulty > 0.24 && difficulty < 0.9 && step % 8 === 3) type = "crumbly";
+    if (difficulty > 0.58 && step % 14 === 7) type = "spring";
 
     platforms.push({ x, y, w, h: 18, type, broken: false, timer: 0 });
 
-    if (layer % 7 === 0) {
-      const rw = 98 + rand() * 40;
-      const rx = WIDTH * 0.5 - rw * 0.5 + (rand() - 0.5) * 44;
-      const ry = y - 72 - rand() * 34;
-      platforms.push({
-        x: Math.max(20, Math.min(WIDTH - rw - 20, rx)),
-        y: ry,
-        w: rw,
-        h: 16,
-        type: "solid",
-        broken: false,
-        timer: 0,
-      });
+    if (step % 6 === 2) {
+      const catchW = clamp(w + 18, 88, 160);
+      const catchX = clamp(x - (pseudo(step * 9 + 4) - 0.5) * 30, 24, WIDTH - catchW - 24);
+      platforms.push({ x: catchX, y: y + 62, w: catchW, h: 14, type: "solid", broken: false, timer: 0 });
     }
 
-    if (progress > 0.28 && progress < 0.95 && rand() < 0.14) {
-      const sw = Math.max(18, Math.min(44, w * (0.3 + rand() * 0.26)));
-      const sx = x + rand() * (w - sw);
-      spikes.push({ x: sx, y: y - 11, w: sw, h: 11 });
+    if (difficulty > 0.32 && difficulty < 0.95 && step % 9 === 6 && type === "solid") {
+      const sw = clamp(w * 0.32, 22, 44);
+      const sx = x + (w - sw) * clamp(pseudo(step * 6 + 1), 0.15, 0.85);
+      spikes.push({ x: sx, y: y - 12, w: sw, h: 12 });
     }
+
+    step += 1;
   }
 
-  platforms.push({
-    x: WIDTH * 0.5 - 62,
-    y: GOAL_Y + 48,
-    w: 124,
-    h: 18,
-    type: "solid",
-    broken: false,
-    timer: 0,
-  });
-
+  platforms.push({ x: WIDTH * 0.5 - 72, y: GOAL_Y + 52, w: 144, h: 18, type: "solid", broken: false, timer: 0 });
   return { platforms, spikes };
+}
+
+function pseudo(n) {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function setInput(key, value) {
@@ -148,25 +179,26 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
-function checkpointLabel(heightMeters) {
-  if (heightMeters < 180) return "Base Camp";
-  if (heightMeters < 460) return "Boulder Pass";
-  if (heightMeters < 900) return "Glass Ridge";
-  if (heightMeters < 1400) return "Hammer Spine";
-  if (heightMeters < 1900) return "Cloud Bastion";
-  return "Final Climb";
+function checkpointNameForHeight(h) {
+  if (h < 180) return "Base Camp";
+  if (h < 520) return "Ridge Marker";
+  if (h < 980) return "Broken Arch";
+  if (h < 1500) return "Choir Ledge";
+  if (h < 2200) return "Cloud Bastion";
+  return "Bell Keep Approach";
 }
 
-function updateHud() {
-  heightEl.textContent = `${run.currentHeight}m`;
-  bestEl.textContent = `${run.best}m`;
-  fallsEl.textContent = String(run.falls);
-  checkpointEl.textContent = run.checkpointName;
+function syncHud() {
+  heightEl.textContent = `${game.currentHeight}m`;
+  bestEl.textContent = `${game.best}m`;
+  fallsEl.textContent = String(game.falls);
+  checkpointEl.textContent = game.checkpointName;
+  chapterEl.textContent = game.chapter;
 }
 
 function resetPlayerToSpawn() {
-  player.x = run.respawnX;
-  player.y = run.respawnY;
+  player.x = game.respawnX;
+  player.y = game.respawnY;
   player.vx = 0;
   player.vy = 0;
   player.charge = 0;
@@ -175,94 +207,107 @@ function resetPlayerToSpawn() {
 }
 
 function startRun() {
-  run.mode = "playing";
-  run.cameraY = 0;
-  run.shake = 0;
-  run.falls = 0;
-  run.currentHeight = 0;
-  run.checkpointHeight = 0;
-  run.nextCheckpointMilestone = 120;
-  run.checkpointName = "Base Camp";
-  run.respawnX = WIDTH * 0.5 - 13;
-  run.respawnY = BASE_Y - 36;
-  run.deathMessage = "";
+  game.mode = "playing";
+  game.cameraY = 0;
+  game.shake = 0;
+  game.falls = 0;
+  game.currentHeight = 0;
+  game.checkpointHeight = 0;
+  game.checkpointName = "Base Camp";
+  game.nextCheckpoint = 160;
+  game.respawnX = WIDTH * 0.5 - 13;
+  game.respawnY = BASE_Y - 38;
+  game.storyIndex = 0;
+  game.chapter = storyMoments[0].chapter;
 
   for (const platform of level.platforms) {
     platform.broken = false;
     platform.timer = 0;
   }
 
+  storyEl.textContent = storyMoments[0].line;
+  setStatus("Run started. Commit to each jump.");
   resetPlayerToSpawn();
-  setStatus("Climb to the crown. One fall can cost everything.");
-  updateHud();
+  syncHud();
 }
 
-function knockout(message) {
-  run.falls += 1;
-  run.shake = 0.3;
-  run.deathMessage = message;
-  resetPlayerToSpawn();
+function loseLife(message) {
+  game.falls += 1;
+  game.shake = 0.28;
   setStatus(message);
+  resetPlayerToSpawn();
 }
 
-function maybeUnlockCheckpoint(landedPlatform) {
-  if (!landedPlatform) return;
-  if (run.currentHeight < run.nextCheckpointMilestone) return;
+function maybeSetCheckpoint(platform) {
+  if (!platform) return;
+  if (game.currentHeight < game.nextCheckpoint) return;
 
-  run.checkpointHeight = run.currentHeight;
-  run.checkpointName = checkpointLabel(run.currentHeight);
-  run.respawnX = landedPlatform.x + landedPlatform.w * 0.5 - player.w * 0.5;
-  run.respawnY = landedPlatform.y - player.h;
-  run.nextCheckpointMilestone += 220;
-  setStatus(`Checkpoint reached: ${run.checkpointName}`);
+  game.checkpointHeight = game.currentHeight;
+  game.checkpointName = checkpointNameForHeight(game.currentHeight);
+  game.respawnX = platform.x + platform.w * 0.5 - player.w * 0.5;
+  game.respawnY = platform.y - player.h;
+  game.nextCheckpoint += 260;
+  setStatus(`Checkpoint reached: ${game.checkpointName}`);
+}
+
+function maybeAdvanceStory() {
+  const next = storyMoments[game.storyIndex + 1];
+  if (!next) return;
+  if (game.currentHeight < next.at) return;
+
+  game.storyIndex += 1;
+  game.chapter = next.chapter;
+  storyEl.textContent = next.line;
+  setStatus(`Story unlocked: ${next.chapter}`);
 }
 
 function startCharge() {
-  if (run.mode !== "playing") return;
+  if (game.mode !== "playing") return;
   if (!player.grounded) return;
   player.charging = true;
   player.charge = 0;
 }
 
 function releaseJump() {
-  if (run.mode !== "playing") return;
+  if (game.mode !== "playing") return;
   if (!player.charging || !player.grounded) return;
 
-  const charge = Math.max(0.08, player.charge);
-  const jumpPower = 470 + charge * 910;
-  const push = 170 + charge * 360;
+  const c = Math.max(0.08, player.charge);
+  const jump = 480 + c * 940;
+  const push = 180 + c * 350;
 
-  player.vy = -jumpPower;
+  player.vy = -jump;
   player.vx = player.facing * push;
   player.grounded = false;
   player.charging = false;
   player.charge = 0;
 }
 
-function pointerDownForButton(button, fn) {
+function bindPress(button, onDown, onUp) {
   button.addEventListener("mousedown", (event) => {
     event.preventDefault();
-    fn();
+    onDown();
   });
   button.addEventListener(
     "touchstart",
     (event) => {
       event.preventDefault();
-      fn();
+      onDown();
     },
     { passive: false }
   );
-}
 
-function pointerUpForButton(button, fn) {
-  const wrapped = (event) => {
+  if (!onUp) return;
+
+  const up = (event) => {
     event.preventDefault();
-    fn();
+    onUp();
   };
-  button.addEventListener("mouseup", wrapped);
-  button.addEventListener("mouseleave", wrapped);
-  button.addEventListener("touchend", wrapped);
-  button.addEventListener("touchcancel", wrapped);
+
+  button.addEventListener("mouseup", up);
+  button.addEventListener("mouseleave", up);
+  button.addEventListener("touchend", up);
+  button.addEventListener("touchcancel", up);
 }
 
 window.addEventListener("keydown", (event) => {
@@ -270,8 +315,8 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
   }
 
-  if ((event.code === "ArrowLeft" || event.code === "KeyA") && run.mode === "playing") setInput("left", true);
-  if ((event.code === "ArrowRight" || event.code === "KeyD") && run.mode === "playing") setInput("right", true);
+  if ((event.code === "ArrowLeft" || event.code === "KeyA") && game.mode === "playing") setInput("left", true);
+  if ((event.code === "ArrowRight" || event.code === "KeyD") && game.mode === "playing") setInput("right", true);
 
   if (event.code === "Space" && !input.jump) {
     setInput("jump", true);
@@ -279,9 +324,7 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "Enter") {
-    if (run.mode === "title" || run.mode === "won") {
-      startRun();
-    }
+    if (game.mode === "title" || game.mode === "won") startRun();
   }
 
   if (event.code === "KeyR") {
@@ -302,46 +345,67 @@ window.addEventListener("keyup", (event) => {
 for (const button of document.querySelectorAll("button[data-key]")) {
   const key = button.dataset.key;
   if (key === "jump") {
-    pointerDownForButton(button, () => {
-      if (!input.jump) {
-        setInput("jump", true);
-        startCharge();
+    bindPress(
+      button,
+      () => {
+        if (!input.jump) {
+          setInput("jump", true);
+          startCharge();
+        }
+      },
+      () => {
+        setInput("jump", false);
+        releaseJump();
       }
-    });
-    pointerUpForButton(button, () => {
-      setInput("jump", false);
-      releaseJump();
-    });
+    );
   } else {
-    pointerDownForButton(button, () => {
-      if (run.mode === "playing") setInput(key, true);
-    });
-    pointerUpForButton(button, () => {
-      setInput(key, false);
-    });
+    bindPress(
+      button,
+      () => {
+        if (game.mode === "playing") setInput(key, true);
+      },
+      () => {
+        setInput(key, false);
+      }
+    );
   }
 }
 
-pointerDownForButton(startBtn, () => {
-  if (run.mode === "title" || run.mode === "won") {
+bindPress(startBtn, () => {
+  if (game.mode === "title" || game.mode === "won") {
     startRun();
   } else {
     setStatus("Run already active.");
   }
 });
 
-pointerDownForButton(restartBtn, () => {
+bindPress(restartBtn, () => {
   startRun();
 });
 
+bindPress(fullscreenBtn, async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+    return;
+  }
+
+  if (stageShell.requestFullscreen) {
+    await stageShell.requestFullscreen();
+  }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+});
+
 function update(dt) {
-  if (run.mode !== "playing") return;
+  if (game.mode !== "playing") return;
 
   if (input.left) player.facing = -1;
   if (input.right) player.facing = 1;
 
   if (player.charging && input.jump && player.grounded) {
-    player.charge = Math.min(player.maxCharge, player.charge + dt * 1.12);
+    player.charge = Math.min(player.maxCharge, player.charge + dt * 1.08);
   }
 
   for (const platform of level.platforms) {
@@ -359,6 +423,7 @@ function update(dt) {
 
   const prevX = player.x;
   const prevY = player.y;
+
   player.x += player.vx * dt;
   player.y += player.vy * dt;
 
@@ -371,8 +436,8 @@ function update(dt) {
     player.vx *= WALL_BOUNCE;
   }
 
-  let landedPlatform = null;
   player.grounded = false;
+  let landedPlatform = null;
 
   for (const platform of level.platforms) {
     if (platform.broken) continue;
@@ -389,116 +454,134 @@ function update(dt) {
       landedPlatform = platform;
 
       if (platform.type === "spring") {
-        player.vy = -Math.max(740, Math.abs(player.vy) * 0.98);
+        player.vy = -Math.max(760, Math.abs(player.vy) * 0.94);
         player.grounded = false;
         landedPlatform = null;
-        player.charging = false;
-        player.charge = 0;
       } else {
         player.vy = 0;
       }
 
       if (platform.type === "crumbly" && platform.timer <= 0) {
-        platform.timer = 0.15;
+        platform.timer = 0.18;
       }
     }
   }
 
   for (const spike of level.spikes) {
-    const overlap =
+    const hit =
       player.x + player.w > spike.x &&
       player.x < spike.x + spike.w &&
       player.y + player.h > spike.y &&
       player.y < spike.y + spike.h;
-    if (overlap) {
-      knockdownFrom(prevX, prevY);
+    if (hit) {
+      player.x = prevX;
+      player.y = prevY;
+      loseLife("Spikes! You tumble back to your checkpoint.");
       return;
     }
   }
 
   if (player.y > FALL_LIMIT) {
-    knockout("Long fall. Back to checkpoint.");
+    loseLife("A long fall. Regain focus and climb again.");
     return;
   }
 
-  run.currentHeight = Math.max(0, Math.floor((BASE_Y - player.y) / 10));
-  if (run.currentHeight > run.best) {
-    run.best = run.currentHeight;
-    localStorage.setItem(STORAGE_KEY, String(run.best));
+  game.currentHeight = Math.max(0, Math.floor((BASE_Y - player.y) / 10));
+  if (game.currentHeight > game.best) {
+    game.best = game.currentHeight;
+    localStorage.setItem(STORAGE_KEY, String(game.best));
   }
 
-  maybeUnlockCheckpoint(landedPlatform);
+  maybeSetCheckpoint(landedPlatform);
+  maybeAdvanceStory();
 
   if (player.y <= GOAL_Y) {
-    run.mode = "won";
-    setStatus("You claimed the crown. Press Enter to run again.");
+    game.mode = "won";
+    game.chapter = "Epilogue - Bell of Dawn";
+    storyEl.textContent = "The bell roars across the valley. The city wakes to your victory.";
+    setStatus("Crown claimed. Press Enter to begin a new legend.");
   }
 
-  const targetCamera = player.y - HEIGHT * 0.58;
-  run.cameraY += (targetCamera - run.cameraY) * Math.min(1, dt * 5.5);
-  run.cameraY = Math.max(WORLD_TOP, Math.min(WORLD_BOTTOM, run.cameraY));
+  const targetCamera = player.y - HEIGHT * 0.6;
+  game.cameraY += (targetCamera - game.cameraY) * Math.min(1, dt * 5.2);
+  game.cameraY = clamp(game.cameraY, WORLD_TOP, BASE_Y + 40);
 
-  if (run.shake > 0) run.shake = Math.max(0, run.shake - dt);
-
-  updateHud();
-}
-
-function knockdownFrom(prevX, prevY) {
-  player.x = prevX;
-  player.y = prevY;
-  knockout("Spikes! You were knocked down.");
+  if (game.shake > 0) game.shake = Math.max(0, game.shake - dt);
+  syncHud();
 }
 
 function drawBackground() {
   const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  gradient.addColorStop(0, "#b8d6f2");
-  gradient.addColorStop(0.56, "#efe3ce");
-  gradient.addColorStop(1, "#e0b088");
+  gradient.addColorStop(0, "#a4c9ea");
+  gradient.addColorStop(0.58, "#f3dcc0");
+  gradient.addColorStop(1, "#db9e76");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  const parallax = run.cameraY * 0.12;
-  for (let i = 0; i < 8; i += 1) {
-    const x = ((i * 74 + parallax) % (WIDTH + 120)) - 60;
-    const y = 60 + i * 78;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+  const parallaxFar = game.cameraY * 0.06;
+  const parallaxNear = game.cameraY * 0.12;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.46)";
+  for (let i = 0; i < 10; i += 1) {
+    const x = ((i * 92 + parallaxNear) % (WIDTH + 140)) - 70;
+    const y = 80 + i * 86;
     ctx.beginPath();
-    ctx.ellipse(x, y, 42, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, 46, 15, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = "rgba(82, 60, 48, 0.28)";
-  for (let i = 0; i < 6; i += 1) {
-    const sx = i * 100 - ((run.cameraY * 0.06) % 100);
+  ctx.fillStyle = "rgba(83, 57, 43, 0.2)";
+  for (let i = 0; i < 7; i += 1) {
+    const x = i * 105 - (parallaxFar % 105);
     ctx.beginPath();
-    ctx.moveTo(sx, HEIGHT);
-    ctx.lineTo(sx + 60, HEIGHT - 120 - (i % 2) * 20);
-    ctx.lineTo(sx + 130, HEIGHT);
+    ctx.moveTo(x, HEIGHT);
+    ctx.lineTo(x + 55, HEIGHT - 130 - (i % 2) * 18);
+    ctx.lineTo(x + 140, HEIGHT);
     ctx.fill();
   }
 }
 
 function drawGoal() {
-  const y = GOAL_Y - run.cameraY;
-  if (y < -140 || y > HEIGHT + 90) return;
+  const gy = GOAL_Y - game.cameraY;
+  if (gy < -150 || gy > HEIGHT + 100) return;
 
-  ctx.fillStyle = "#674329";
-  ctx.fillRect(WIDTH * 0.5 - 5, y - 88, 10, 100);
+  ctx.fillStyle = "#6a4430";
+  ctx.fillRect(WIDTH * 0.5 - 5, gy - 95, 10, 105);
 
-  ctx.fillStyle = "#7a2817";
-  ctx.fillRect(WIDTH * 0.5 + 5, y - 116, 30, 22);
+  ctx.fillStyle = "#7f271a";
+  ctx.fillRect(WIDTH * 0.5 + 5, gy - 128, 36, 24);
 
-  ctx.fillStyle = "#f8c55a";
+  ctx.fillStyle = "#fac55d";
   ctx.beginPath();
-  ctx.arc(WIDTH * 0.5, y - 98, 18, 0, Math.PI * 2);
+  ctx.arc(WIDTH * 0.5, gy - 104, 19, 0, Math.PI * 2);
   ctx.fill();
 }
 
+function drawPlatforms() {
+  for (const platform of level.platforms) {
+    if (platform.broken) continue;
+
+    const py = platform.y - game.cameraY;
+    if (py < -30 || py > HEIGHT + 30) continue;
+
+    if (platform.type === "solid") ctx.fillStyle = "#8f5f45";
+    if (platform.type === "crumbly") ctx.fillStyle = "#a28161";
+    if (platform.type === "spring") ctx.fillStyle = "#3d644f";
+
+    if (platform.timer > 0) ctx.globalAlpha = 0.72;
+    ctx.fillRect(platform.x, py, platform.w, platform.h);
+    ctx.fillStyle = "rgba(255, 237, 204, 0.34)";
+    ctx.fillRect(platform.x + 4, py + 3, Math.max(8, platform.w - 8), 4);
+    ctx.globalAlpha = 1;
+  }
+}
+
 function drawSpikes() {
-  ctx.fillStyle = "#6d3b34";
+  ctx.fillStyle = "#6b3b35";
   for (const spike of level.spikes) {
-    const sy = spike.y - run.cameraY;
-    if (sy < -20 || sy > HEIGHT + 20) continue;
+    const sy = spike.y - game.cameraY;
+    if (sy < -24 || sy > HEIGHT + 24) continue;
+
     const count = Math.max(2, Math.floor(spike.w / 10));
     const slice = spike.w / count;
     for (let i = 0; i < count; i += 1) {
@@ -512,76 +595,54 @@ function drawSpikes() {
   }
 }
 
-function drawPlatforms() {
-  for (const platform of level.platforms) {
-    const py = platform.y - run.cameraY;
-    if (py < -30 || py > HEIGHT + 30) continue;
-    if (platform.broken) continue;
-
-    if (platform.type === "solid") ctx.fillStyle = "#8b5f45";
-    if (platform.type === "crumbly") ctx.fillStyle = "#9e7f5f";
-    if (platform.type === "spring") ctx.fillStyle = "#406350";
-
-    if (platform.timer > 0) {
-      ctx.globalAlpha = 0.7;
-    }
-
-    ctx.fillRect(platform.x, py, platform.w, platform.h);
-    ctx.fillStyle = "rgba(255, 240, 217, 0.34)";
-    ctx.fillRect(platform.x + 4, py + 3, Math.max(8, platform.w - 8), 4);
-    ctx.globalAlpha = 1;
-  }
-}
-
 function drawPlayer() {
   const px = player.x;
-  const py = player.y - run.cameraY;
+  const py = player.y - game.cameraY;
 
-  ctx.fillStyle = "#1c1918";
+  ctx.fillStyle = "#1f1a18";
   ctx.fillRect(px, py, player.w, player.h);
-
   ctx.fillStyle = "#ea6f40";
-  ctx.fillRect(px + 4, py + 7, player.w - 8, player.h - 10);
+  ctx.fillRect(px + 4, py + 7, player.w - 8, player.h - 11);
 
   const eyeX = player.facing > 0 ? px + player.w - 8 : px + 4;
   ctx.fillStyle = "#fff";
   ctx.fillRect(eyeX, py + 10, 4, 4);
 
-  if (player.grounded && player.charging) {
+  if (player.charging && player.grounded) {
     const ratio = player.charge / player.maxCharge;
-    const bw = 76;
+    const bw = 84;
     const bx = px + player.w * 0.5 - bw * 0.5;
-    const by = py - 14;
-    ctx.fillStyle = "rgba(21, 13, 9, 0.5)";
-    ctx.fillRect(bx, by, bw, 6);
-    ctx.fillStyle = "#ff7f4e";
-    ctx.fillRect(bx, by, bw * ratio, 6);
+    const by = py - 15;
+    ctx.fillStyle = "rgba(25, 17, 12, 0.5)";
+    ctx.fillRect(bx, by, bw, 7);
+    ctx.fillStyle = "#ff7f4d";
+    ctx.fillRect(bx, by, bw * ratio, 7);
   }
 }
 
 function drawOverlay() {
-  if (run.mode === "playing") return;
+  if (game.mode === "playing") return;
 
-  ctx.fillStyle = "rgba(19, 14, 11, 0.74)";
-  ctx.fillRect(22, HEIGHT * 0.24, WIDTH - 44, 220);
+  ctx.fillStyle = "rgba(22, 16, 12, 0.76)";
+  ctx.fillRect(36, HEIGHT * 0.27, WIDTH - 72, 240);
   ctx.textAlign = "center";
 
-  if (run.mode === "title") {
-    ctx.fillStyle = "#fff3dd";
-    ctx.font = "700 38px Space Grotesk";
-    ctx.fillText("SKYBOUND CROWN", WIDTH * 0.5, HEIGHT * 0.34);
-    ctx.font = "500 20px Space Grotesk";
-    ctx.fillText("Hold jump, release to launch", WIDTH * 0.5, HEIGHT * 0.41);
-    ctx.fillText("Press Enter or Start Run", WIDTH * 0.5, HEIGHT * 0.47);
+  if (game.mode === "title") {
+    ctx.fillStyle = "#fff1d2";
+    ctx.font = "700 46px Space Grotesk";
+    ctx.fillText("SKYBOUND CROWN", WIDTH * 0.5, HEIGHT * 0.38);
+    ctx.font = "500 24px Space Grotesk";
+    ctx.fillText("Hold jump, release to launch", WIDTH * 0.5, HEIGHT * 0.46);
+    ctx.fillText("Press Enter or Start", WIDTH * 0.5, HEIGHT * 0.52);
   }
 
-  if (run.mode === "won") {
-    ctx.fillStyle = "#fff0d0";
-    ctx.font = "700 42px Space Grotesk";
-    ctx.fillText("CROWN CLAIMED", WIDTH * 0.5, HEIGHT * 0.35);
-    ctx.font = "500 22px Space Grotesk";
-    ctx.fillText(`Final height: ${run.currentHeight}m`, WIDTH * 0.5, HEIGHT * 0.43);
-    ctx.fillText("Press Enter or Restart", WIDTH * 0.5, HEIGHT * 0.49);
+  if (game.mode === "won") {
+    ctx.fillStyle = "#ffeccc";
+    ctx.font = "700 52px Space Grotesk";
+    ctx.fillText("CROWN CLAIMED", WIDTH * 0.5, HEIGHT * 0.39);
+    ctx.font = "500 24px Space Grotesk";
+    ctx.fillText(`Final Height: ${game.currentHeight}m`, WIDTH * 0.5, HEIGHT * 0.47);
+    ctx.fillText("Press Enter or Restart", WIDTH * 0.5, HEIGHT * 0.53);
   }
 
   ctx.textAlign = "left";
@@ -589,11 +650,9 @@ function drawOverlay() {
 
 function render() {
   ctx.save();
-  if (run.shake > 0) {
-    const amount = run.shake * 8;
-    const dx = (Math.random() * 2 - 1) * amount;
-    const dy = (Math.random() * 2 - 1) * amount;
-    ctx.translate(dx, dy);
+  if (game.shake > 0) {
+    const mag = game.shake * 7;
+    ctx.translate((Math.random() * 2 - 1) * mag, (Math.random() * 2 - 1) * mag);
   }
 
   drawBackground();
@@ -605,14 +664,15 @@ function render() {
   ctx.restore();
 }
 
-let lastFrame = performance.now();
-function frame(now) {
-  const dt = Math.min(0.033, (now - lastFrame) / 1000);
-  lastFrame = now;
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
   update(dt);
   render();
-  requestAnimationFrame(frame);
+  requestAnimationFrame(tick);
 }
 
-updateHud();
-requestAnimationFrame(frame);
+syncHud();
+storyEl.textContent = storyMoments[0].line;
+requestAnimationFrame(tick);

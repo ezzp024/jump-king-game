@@ -78,6 +78,24 @@ h1 {
   margin-bottom: 10px;
 }
 
+.action-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.action-row #status {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
+  color: #5a483d;
+  font-size: 0.9rem;
+}
+
 .hud p {
   margin: 0;
   padding: 7px 12px;
@@ -141,6 +159,11 @@ button.jump {
   border-color: rgba(101, 40, 24, 0.35);
 }
 
+button.accent {
+  background: linear-gradient(180deg, #f7b761, #e68c36);
+  border-color: rgba(109, 57, 21, 0.32);
+}
+
 .legend {
   margin-top: 12px;
   font-size: 0.9rem;
@@ -182,6 +205,18 @@ kbd {
 
   .controls {
     flex-direction: column;
+  }
+
+  .action-row {
+    align-items: stretch;
+  }
+
+  .action-row button {
+    flex: 1;
+  }
+
+  .action-row #status {
+    width: 100%;
   }
 
   .controls-left {

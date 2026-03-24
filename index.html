@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skybound Crown</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bungee&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Free GitHub Pages Game</p>
+      <h1>Skybound Crown</h1>
+      <p class="subtitle">A tough, jump-charge platformer inspired by Jump King.</p>
+    </section>
+
+    <section class="game-shell">
+      <div class="hud">
+        <p><span>Height</span> <strong id="height">0m</strong></p>
+        <p><span>Best</span> <strong id="best">0m</strong></p>
+        <p><span>Falls</span> <strong id="falls">0</strong></p>
+      </div>
+
+      <canvas id="game" width="480" height="720" aria-label="Jumping game canvas"></canvas>
+
+      <div class="controls">
+        <div class="controls-left">
+          <button data-key="left" aria-label="Face left">Left</button>
+          <button data-key="right" aria-label="Face right">Right</button>
+        </div>
+        <button class="jump" data-key="jump" aria-label="Hold then release jump">Hold Jump</button>
+      </div>
+
+      <div class="legend">
+        <p><strong>Desktop:</strong> <kbd>A</kbd>/<kbd>D</kbd> or <kbd>←</kbd>/<kbd>→</kbd> to face, hold <kbd>Space</kbd> to charge, release to jump.</p>
+        <p><strong>Mobile:</strong> tap left/right to face, hold <em>Hold Jump</em>, release to launch.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./game.js"></script>
+</body>
+</html>

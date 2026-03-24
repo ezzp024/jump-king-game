@@ -1,0 +1,195 @@
+:root {
+  --bg-top: #f3ead9;
+  --bg-mid: #f9f3e8;
+  --bg-bottom: #fffdfa;
+  --ink: #1d1a18;
+  --brand: #d9592f;
+  --brand-deep: #a93b19;
+  --panel: rgba(255, 255, 255, 0.78);
+  --line: rgba(29, 26, 24, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1300px 500px at 20% -15%, #ffe6b7 0%, transparent 70%),
+    radial-gradient(1000px 600px at 100% 10%, #ffd1b6 0%, transparent 72%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-mid) 45%, var(--bg-bottom));
+}
+
+.page {
+  width: min(1000px, 94vw);
+  margin: 0 auto;
+  padding: 22px 0 28px;
+  animation: rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hero {
+  margin-bottom: 12px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #84513a;
+}
+
+h1 {
+  margin: 4px 0 6px;
+  font-family: "Bungee", "Space Grotesk", sans-serif;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  color: #6a2f1f;
+}
+
+.subtitle {
+  margin: 0;
+  color: #5f4f44;
+}
+
+.game-shell {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(5px);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 40px rgba(69, 49, 39, 0.14);
+}
+
+.hud {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.hud p {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.hud span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7b6a5d;
+}
+
+#game {
+  display: block;
+  width: min(100%, 480px);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 14px;
+  border: 2px solid #d7c9be;
+  background: linear-gradient(180deg, #d6e4ee, #f0e4cf 70%, #edd3ad);
+}
+
+.controls {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.controls-left {
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  border: 1px solid rgba(33, 27, 22, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff8f0, #f7e8d8);
+  color: #3a2a1f;
+  font: inherit;
+  font-weight: 700;
+  padding: 12px 20px;
+  min-height: 48px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:active,
+button.active {
+  transform: translateY(1px) scale(0.99);
+  background: linear-gradient(180deg, #ffe4bf, #ffd7a3);
+}
+
+button.jump {
+  flex: 1;
+  background: linear-gradient(180deg, #ff9a6f, #ea6642);
+  color: #2b150d;
+  border-color: rgba(101, 40, 24, 0.35);
+}
+
+.legend {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #5d4d41;
+}
+
+.legend p {
+  margin: 6px 0;
+}
+
+kbd {
+  padding: 2px 6px;
+  border: 1px solid #cdb8a8;
+  border-radius: 6px;
+  background: #fff;
+  font-family: inherit;
+}
+
+@keyframes rise-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    width: 96vw;
+    padding-top: 12px;
+  }
+
+  .game-shell {
+    padding: 10px;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .controls-left {
+    width: 100%;
+  }
+
+  .controls-left button,
+  .jump {
+    flex: 1;
+  }
+}
